@@ -1,0 +1,1 @@
+java -Dfile.encoding=UTF8 -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m -Xmx1024M -Xss2M -jar bin/sbt-launch-*.jar "$@"
