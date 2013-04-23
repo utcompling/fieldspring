@@ -1,0 +1,397 @@
+#!/bin/sh
+
+# Amount of memory (in megabytes) to reserve for system operation when
+# setting the maximum heap size.
+RESERVED_MEMORY=512
+
+FIELDSPRING_VERSION=0.1.0
+
+HADOOP_FAILURE_OK_ARGS="-Dmapred.max.map.failures.percent=20 -Dmapred.max.reduce.failures.percent=20"
+
+if [ -z "$FIELDSPRING_DIR" ]; then
+  echo "Must set FIELDSPRING_DIR to top level of Fieldspring distribution"
+  exit 1
+fi
+
+JAVA="$JAVA_HOME/bin/java"
+HADOOP_BINARY="${HADOOP_BINARY:-hadoop}"
+
+# NOTE: If environment var TG_JAVA_OPT is set on entry, it will be used.
+
+# Process options
+
+VERBOSE=no
+DEBUG=no
+HADOOP=
+HADOOP_NONDIST=
+MEMORY=
+JAVA_MISC_OPT=
+JAVA_USER_OPT=
+while true; do
+  case "$1" in
+    -verbose | --verbose ) VERBOSE=yes; shift ;;
+    -debug-class | --debug-class )
+      # I think that -verbose:class is the same as -XX:+TraceClassLoading.
+      JAVA_MISC_OPT="$JAVA_MISC_OPT -verbose:class -XX:+TraceClassUnloading"
+      shift ;;
+    -debug | --debug ) DEBUG=yes; shift ;;
+    -m | -memory | --memory ) MEMORY="$2"; shift 2 ;;
+    -minheap | --minheap )
+      JAVA_MISC_OPT="$JAVA_MISC_OPT -XX:MinHeapFreeRatio=$2"; shift 2 ;;
+    -maxheap | --maxheap )
+      JAVA_MISC_OPT="$JAVA_MISC_OPT -XX:MaxHeapFreeRatio=$2"; shift 2 ;;
+    -escape-analysis | --escape-analysis )
+      JAVA_MISC_OPT="$JAVA_MISC_OPT -XX:+DoEscapeAnalysis"; shift ;;
+    -compressed-oops | --compressed-oops )
+      JAVA_MISC_OPT="$JAVA_MISC_OPT -XX:+UseCompressedOops"; shift ;;
+    -java-opt | --java-opt )
+      JAVA_USER_OPT="$JAVA_USER_OPT $2"; shift 2 ;;
+    -hadoop | --hadoop) HADOOP=yes; shift ;;
+    -hadoop-nondist | --hadoop-nondist) HADOOP_NONDIST=yes; shift ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
+
+# For info on Sun JVM options, see:
+
+# http://java.sun.com/docs/hotspot/VMOptions.html
+#
+# (redirects to:
+#
+# http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html
+#
+# )
+#
+# Also see the following for tuning garbage collection:
+#
+# http://www.oracle.com/technetwork/java/gc-tuning-5-138395.html
+
+JAVA_MEMORY_OPT=
+# Try to set the maximum heap size to something slightly less than
+# the physical memory of the machine.  
+if [ -n "$MEMORY" ]; then
+  JAVA_MEMORY_OPT="-Xmx$MEMORY"
+elif [ -n "$TG_SET_JVM_MEMORY" ]; then
+  MEMMB=`$FIELDSPRING_DIR/bin/fieldspring-memory`
+  if [ "$VERBOSE" = yes ]; then
+    echo "Output from fieldspring-memory is: $MEMMB"
+  fi
+  if [ "$MEMMB" = unknown ]; then
+    # The old way we set the heap size, to a very high virtual size.
+    if [ -z "$MEMORY" ]; then
+      if $JAVA -version 2>&1 | grep '64-Bit' > /dev/null; then
+       JAVA_IS_64=yes
+       # Maximum on Linux is about 127t (127 TB, i.e. 130,048 GB).  Maximum on
+       # MacOS X 10.6 (Snow Leopard) is about 125t, but values that big cause a
+       # pause of about 6 seconds at the beginning and a couple of seconds at
+       # the end on my 4GB Mac.  4t doesn't cause much of a pause.
+       MEMORY=4t
+      else
+       JAVA_IS_64=no
+       MEMORY=2g
+      fi
+    fi
+  else
+    MEMORY="`expr $MEMMB - $RESERVED_MEMORY`m"
+  fi
+  JAVA_MEMORY_OPT="-Xmx$MEMORY"
+fi
+
+if [ "$VERBOSE" = yes -a -n "$JAVA_MEMORY_OPT" ]; then
+  echo "Setting maximum JVM heap size to $MEMORY"
+fi
+
+JAVA_DEBUG_OPT=
+if [ "$DEBUG" = yes ]; then
+  # Print details about when and how garbage collection happens; recommended
+  # in http://www.oracle.com/technetwork/java/gc-tuning-5-138395.html
+  JAVA_DEBUG_OPT="-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+TraceClassUnloading"
+  #This will output a lot of stuff about class loading.  Enable it using
+  # --debug-class if you want.
+  #JAVA_DEBUG_OPT="$JAVA_DEBUG_OPT -XX:+TraceClassLoading"
+fi
+
+JARS="`echo $FIELDSPRING_DIR/lib/*.jar $FIELDSPRING_DIR/lib_managed/*/*.jar $FIELDSPRING_DIR/lib_managed/*/*/*.jar $FIELDSPRING_DIR/lib_managed/*/*/*/*.jar $FIELDSPRING_DIR/output/*.jar $FIELDSPRING_DIR/target/*.jar | tr ' ' ':'`"
+SCALA_LIB="$HOME/.sbt/boot/scala-2.9.2/lib/scala-library.jar"
+CP="$FIELDSPRING_DIR/target/classes:$SCALA_LIB:$JARS:$CLASSPATH"
+
+# Later options override earlier ones, so put command-line options after
+# the ones taken from environment variables (TG_JAVA_OPT and to some extent
+# JAVA_MEMORY_OPT, because it depends on env var TG_SET_JVM_MEMORY).
+JAVA_COMMAND="$JAVA $TG_JAVA_OPT $JAVA_MEMORY_OPT $JAVA_DEBUG_OPT $JAVA_MISC_OPT $JAVA_USER_OPT -classpath $CP"
+
+CMD="$1"
+shift
+
+help()
+{
+cat <<EOF
+Fieldspring $FIELDSPRING_VERSION usage:
+  fieldspring [OPTIONS ...] COMMAND [ARGS ...]
+
+Options (mostly low-level):
+
+  --memory MEM          Specify maximum heap size (e.g. 2048m or 20g); if not
+                        given, Fieldspring will attempt to set the heap size
+                        to slightly under physical memory if the environment
+                        variable TG_SET_JVM_MEMORY is set; otherwise, the
+                        JVM will be left to set the heap size automatically.
+  --verbose             Show what commands are being executed.
+  --debug-class         Show each class loaded, and where it's loaded from.
+  --debug               Tell the JVM to output debugging info.
+  --minheap RATIO, --maxheap RATIO
+                        Set the minimum and maximum free heap ratios.  If the
+                        JVM is hogging memory, try --minheap 20 --maxheap 40
+                        to make it more aggressively release memory to the OS
+                        (or --minheap 10 --maxheap 20 to be even more
+                        aggressive).
+  --escape-analysis     Turn on escape analysis (on by default in Java 6
+                        release 23 and later); may speed up code by reducing
+                        allocation for short-lived objects.
+  --compressed-oops     Turn on compressed object pointers (on by default
+                        in Java 6 release 23 and later); may reduce memory
+                        size on 64-bit machines (and possibly speed things up
+                        as well).
+  --java-opt OPTION     Add an arbitrary option to the 'java' executable.
+                        To include multiple options, either enclose in quotes
+                        or repeat '--java-opt' multiple times. (NOTE: Spaces
+                        not currently handled inside of options specified
+                        this way.)
+
+Environment variables:
+
+  FIELDSPRING_DIR      Location of Fieldspring installation; needs to be
+                        set for this script to work at all.
+  TG_SET_JVM_MEMORY     If non-blank, set the maximum JVM heap size to slightly
+                        under the total physical memory size; useful if you
+                        are getting out-of-memory errors.
+  TG_JAVA_OPT           If non-blank, should contain additional options for
+                        the JVM, and will be passed directly to the 'java'
+                        executable.  See 'java -help' and 'java -X' for a
+                        description of some possible options, although neither
+                        of these documents all of the options.  For example,
+                        none of the "non-standard/not-stable" -XX options
+                        are documented this way; these typically control
+                        performance, debugging and/or other low-level behavior.
+                        See the following URL (although even this doesn't
+                        document all of them):
+
+   http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html 
+
+General commands:
+
+  build-all             Build Fieldspring from source using SBT.
+  build                 Enter SBT command line, to issue further commands.
+  build COMMAND ...     Run SBT using some other arbitrary command(s).
+  sbt COMMAND ...       Run SBT using some other arbitrary command(s); same
+                        as 'build'.
+  run CLASS ...         Run the main method of a given class (with the
+                        classpath set appropriately to pick up all
+                        Fieldspring and library classes).
+  hdebrun CLASS ...     Stands for "Hadoop debug run".  Same as 'run', but
+                        turn on stuff more suitable for a Hadoop run during
+                        debugging.  Turns on --verbose and --hadoop and adds
+                        some Hadoop options immediately after the class name
+                        to allow some number (by default, 20%) of all map and
+                        reduce tasks to fail without killing the whole job.
+  javap OPTIONS ...     Run 'javap' (with the classpath set appropriately).
+  scala OPTIONS ...     Run 'scala' (with the classpath set appropriately);
+                        useful for getting a console to experiment with the
+                        Fieldspring code.  Note that you can also use the
+                        command 'sbt console', although that requires that
+                        SBT is set up properly and you can build from source
+                        without errors.
+  run-cp PROGRAM ...    Run an arbitrary Java-based program, setting up the
+                        classpath appropriately.  This assumes that the
+                        program takes the '-classpath' option with the same
+                        format as 'java' and 'javac'.
+  help                  output this help message
+
+Commands for toponym resolution:
+
+  import-gazetteer ...  import a gazetteer from raw form to serialized form
+  import-corpus ...     import a corpus from raw form to serialized form
+  preprocess-labelprop ...
+                        preprocess label propagation
+  geotext-lp ...        run GeoText label propagation resolver
+  resolve ...           run the toponomy resolver
+  write-to-kml ...      write a resolved corpus to visualizable KML format
+  eval ...              evaluated a resolved corpus against a gold corpus
+  viz ...               visualize a serialized corpus
+
+Commands for the Geolocate module:
+
+  geolocate-document ... do document-level geolocation
+  hadoop-geolocate-document ...
+                        do document-level geolocation using Hadoop
+  hadoop-nondist-geolocate-document ...
+                        do document-level geolocation using Hadoop, but run
+                        in non-distributed mode (aka standalone mode), for
+                        testing
+  geolocate-toponym ... do toponym-level geolocation
+  generate-kml ...      create KML files showing the distribution over the
+                        Earth of specific words
+
+Commands for the Bayesian module:
+
+  rlda-run ...          train region model
+  spher-run ...         train spherical model
+  rlda-fcrm-run ...     train fully-constrained region model
+  rlda-convert-from ... convert from region-model format
+  rlda-convert-to ...   convert to region-model format
+  rlda-prob-out ...     pretty-print probabilities
+  rlda-xml-prob-out ... pretty-print probabilities in XML format
+
+The arguments for the various commands are specific to the particular
+command, and often include options and/or file names.  Use --help after the
+command for more information.
+EOF
+}
+
+#RUN_SBT="$JAVA -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=512m -Xmx2048M -Xss2M -jar $FIELDSPRING_DIR/bin/sbt-launch-*.jar"
+RUN_SBT="$JAVA -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m -Xmx1024M -Xss2M -jar $FIELDSPRING_DIR/bin/sbt-launch-*.jar"
+
+execute()
+{
+  local CD
+  if [ "$1" = "--cd" ]; then
+    CD=yes
+    shift
+  else
+    CD=no
+  fi
+  RUNCMD="$1"; shift
+  if [ "$VERBOSE" = yes ]; then
+    if [ "$CD" = yes ]; then
+      echo Executing: cd $FIELDSPRING_DIR
+    fi
+    echo Executing: $RUNCMD ${1+"$@"}
+  fi
+  if [ "$CD" = yes ]; then
+    cd $FIELDSPRING_DIR
+  fi
+  $RUNCMD ${1+"$@"}
+}
+
+if [ -z "$CMD" ]; then
+  help; exit 1
+
+elif [ "$CMD" = 'javap' ]; then
+
+  execute javap -classpath "$CP" ${1+"$@"}
+
+elif [ "$CMD" = 'scala' ]; then
+
+  execute scala -classpath "$CP" ${1+"$@"}
+
+elif [ "$CMD" = 'run-cp' ]; then
+
+  CP_CMD="$1"; shift
+  execute "$CP_CMD" -classpath "$CP" ${1+"$@"}
+
+elif [ "$CMD" = 'build' -o "$CMD" = 'sbt' ]; then
+
+  # We need to cd to the top-level Fieldspring dir when running SBT,
+  # so the proper build.sbt file gets picked up, etc.
+  execute --cd "$RUN_SBT" ${1+"$@"}
+
+elif [ "$CMD" = 'build-all' ]; then
+
+  # We need to cd to the top-level Fieldspring dir when running SBT,
+  # so the proper build.sbt file gets picked up, etc.
+  execute --cd "$RUN_SBT update compile" ${1+"$@"}
+
+else  
+
+  CLASS=
+  HADOOP_ARGS=
+  TGPACK=opennlp.fieldspring
+  TGTRAPP=$TGPACK.tr.app
+  TGAPP=$TGPACK.app
+  TGBAYESAPP=$TGPACK.bayesian.apps
+  TGGEOLOCATE=$TGPACK.geolocate
+
+  case $CMD in
+    # Various commands
+    resolve) CLASS=$TGTRAPP.RunResolver;;
+    geotext-lp) CLASS=$TGTRAPP.GeoTextLabelProp;;
+    import-gazetteer) CLASS=$TGTRAPP.ImportGazetteer;;
+    import-corpus) CLASS=$TGTRAPP.ImportCorpus;;
+    preprocess-labelprop) CLASS=$TGTRAPP.LabelPropPreproc;;
+    write-to-kml) CLASS=$TGTRAPP.WriteCorpusToKML;;
+    eval) CLASS=$TGTRAPP.EvaluateCorpus;;
+    viz) CLASS=$TGTRAPP.VisualizeCorpus;;
+
+    # Commands in the Bayesian code (there are many more)
+    rlda-convert-from) CLASS=$TGBAYESAPP.ConvertFromRegionModelFormat;;
+    rlda-convert-to) CLASS=$TGBAYESAPP.ConvertToRegionModelFormat;;
+    rlda-fcrm-run) CLASS=$TGBAYESAPP.TrainFullyConstrainedRegionModel;;
+    rlda-prob-out) CLASS=$TGBAYESAPP.PrettyPrintProbabilities;;
+    rlda-xml-prob-out) CLASS=$TGBAYESAPP.PrettyPrintProbabilitiesXML;;
+    rlda-run) CLASS=$TGBAYESAPP.TrainRegionModel;;
+    spher-run) CLASS=$TGBAYESAPP.TrainSphericalModel;;
+
+    # Geolocate commands
+    geolocate-document)
+      # Include now because we need FIELDSPRING_URL; but not before so that
+      # we don't get complaints about TG_CORPUS_DIR otherwise.
+      . config-geolocate
+
+      # Note that the only difference between running in distributed and
+      # non-distributed mode is how we run things (using 'hadoop jar' for
+      # distributed, 'java' for non-distributed) and the input paths we
+      # pass (through --fieldspring-dir here, and also through corpora
+      # paths in 'tg-geolocate').
+      if [ -n "$HADOOP" ]; then
+        HADOOP_ARGS="--fieldspring-dir $FIELDSPRING_URL" CLASS=$TGGEOLOCATE.HadoopGeolocateDocumentApp
+      elif [ -n "$HADOOP_NONDIST" ]; then
+        HADOOP_ARGS="--fieldspring-dir $FIELDSPRING_URL" CLASS=$TGGEOLOCATE.HadoopGeolocateDocumentApp
+      else
+        CLASS=$TGGEOLOCATE.GeolocateDocumentApp
+      fi
+    ;;
+    geolocate-toponym)
+       
+      CLASS=$TGGEOLOCATE.toponym.GeolocateToponymApp;;
+    generate-kml) CLASS=$TGGEOLOCATE.GenerateKMLApp;;
+
+    # Misc
+    run) CLASS="$1"; shift;;
+    hdebrun)
+      VERBOSE=yes; HADOOP=yes; CLASS="$1"; shift;
+      HADOOP_ARGS="$HADOOP_FAILURE_OK_ARGS $HADOOP_ARGS"
+      ;;
+    help) help; exit 1;;
+    *) echo "Unrecognized command: $CMD"; help; exit 1;;
+  esac
+
+  # We need to *not* cd to the top-level Fieldspring dir, otherwise if
+  # there are command-line arguments referring relatively to files, the
+  # files won't be found because the lookup will be relative to the
+  # wrong directory.
+
+  if [ -n "$HADOOP" ]; then
+    ASSEMBLY_DIR="$FIELDSPRING_DIR/target"
+    ASSEMBLY_GLOB="$ASSEMBLY_DIR/Fieldspring-*.jar"
+    if [ "`echo $ASSEMBLY_GLOB`" = "$ASSEMBLY_GLOB" ]; then
+      echo "No assembly file!  Unable to execute in Hadoop distribute mode."
+      exit 1
+    else
+      NUM_ASSEMBLY_FILES=`ls -1 $ASSEMBLY_GLOB | wc -l`
+      ASSEMBLY_FILE=`ls -1 $ASSEMBLY_GLOB | head -1`
+      if [ "$NUM_ASSEMBLY_FILES" -ne 1 ]; then
+        echo "Warning!  More than one assembly file found:"
+        ls -1 $ASSEMBLY_GLOB
+        echo "Choosing $ASSEMBLY_FILE"
+      fi
+    fi       
+            
+    HADOOP_COMMAND="$HADOOP_BINARY jar $ASSEMBLY_FILE"
+
+    execute "$HADOOP_COMMAND $CLASS" $HADOOP_ARGS ${1+"$@"}
+  else
+    execute "$JAVA_COMMAND $CLASS" $HADOOP_ARGS ${1+"$@"}
+  fi
+
+fi
