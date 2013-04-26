@@ -44,7 +44,10 @@ object CIAWFBFixer extends App {
 
   //countriesToCoords.foreach(p => println(p._1 + " " + p._2._1 + "," + p._2._2))
 
-  val lineRE = """^(.*lat=\")([^\"]+)(.*long=\")(-0)(.*humanPath=\")([^\"]+)(.*)$""".r
+  val lineRE = """^(.*lat=\")([^\"]+)(.*long=\")([^\"]+)(.*)$""".r
+  //val line2RE = """^(.*long=\")([^\"]+)(.*lat=\")([^\"]+)(.*)$""".r
+  //val lineRE = """^(.*lat=\")([^\"]+)(.*long=\")([^\"]+)(.*humanPath=\")([^\"]+)(.*)$""".r
+  val countryNameRE = """^.*humanPath=\"([^\"]+).*$""".r
   
   val inDir = new File(if(args(1).endsWith("/")) args(1).dropRight(1) else args(1))
   val outDir = new File(if(args(2).endsWith("/")) args(2).dropRight(1) else args(2))
@@ -52,20 +55,34 @@ object CIAWFBFixer extends App {
 
     val out = new BufferedWriter(new FileWriter(outDir+"/"+file.getName))
 
-    for(line <- scala.io.Source.fromFile(file).getLines) {
-      if(line.contains("CIAWFB") && line.contains("long=\"-0\"")) {
-        val lineRE(beg, lat0, mid, lon0, humpath, countryName, end) = line
+    /*var beg = ""
+    var lat0 = ""
+    var mid = ""
+    var lon0 = ""
+    var end = ""*/
 
-        var lon = 0.0
+    for(line <- scala.io.Source.fromFile(file).getLines) {
+      if(line.contains("CIAWFB") && lineRE.findFirstIn(line) != None) {// && line.contains("long=\"-0\"")) {
+        //line match {
+          /*case lineRE => */val lineRE(beg, lat0, mid, lon0, end) = line//; beg = begr; lat0 = lat0r; mid = midr; lon0 = lon0r; end = endr;
+          //case line2RE => val line2RE(begr, lon0r, midr, lat0r, endr) = line; beg = begr; lat0 = lat0r; mid = midr; lon0 = lon0r; end = endr;
+        //}
+        val countryNameRE(countryName) = line
+        //val countryName = "hi"
+        
+        //println(line)
+
+        var lat = lat0//.toDouble
+        var lon = lon0//.toDouble
         if(countriesToCoords.contains(countryName.toLowerCase)) {
-          lon = countriesToCoords(countryName.toLowerCase)._2
+          lat = countriesToCoords(countryName.toLowerCase)._1.toString
+          lon = countriesToCoords(countryName.toLowerCase)._2.toString
         }
 
-        var lat = lat0
-        if(countryName.toLowerCase.equals("vatican"))
-          lat = countriesToCoords(countryName.toLowerCase)._1.toString
+        //if(countryName.toLowerCase.equals("vatican"))
+        //  lat = countriesToCoords(countryName.toLowerCase)._1
 
-        out.write(beg+lat+mid+lon+humpath+countryName+end+"\n")
+        out.write(beg+lat+mid+lon+end+"\n")
         //println(beg+lat+mid+lon+humpath+countryName+end+"\n")
       }
       else

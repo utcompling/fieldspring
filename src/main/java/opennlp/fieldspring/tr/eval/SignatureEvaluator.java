@@ -112,8 +112,13 @@ public class SignatureEvaluator extends Evaluator {
                 if(doOracleEval) {
                     if(predCandidates.get(context).size() > 0) {
                         Location closestMatch = getClosestMatch(goldLoc, predCandidates.get(context));
-                        dreport.addDistance(goldLoc.distanceInKm(closestMatch));
+                        double dist = goldLoc.distanceInKm(closestMatch);
+                        dreport.addDistance(dist);
                         report.incrementTP();
+                        String key = goldLoc.getName().toLowerCase();
+                        if(!errors.containsKey(key))
+                            errors.put(key, new ArrayList<Double>());
+                        errors.get(key).add(dist);
                     }
                 }
                 else {
@@ -145,19 +150,19 @@ public class SignatureEvaluator extends Evaluator {
         }
 
         try {
-        BufferedWriter errOut = new BufferedWriter(new FileWriter("errors.txt"));
+            BufferedWriter errOut = new BufferedWriter(new FileWriter("errors.txt"));
 
-        for(String toponym : errors.keySet()) {
-            List<Double> errorList = errors.get(toponym);
-            double sum = 0.0;
-            for(double error : errorList) {
-                sum += error;
+            for(String toponym : errors.keySet()) {
+                List<Double> errorList = errors.get(toponym);
+                double sum = 0.0;
+                for(double error : errorList) {
+                    sum += error;
+                }
+                errOut.write(toponym+" & "+errorList.size()+" & "+(sum/errorList.size())+" & "+sum+"\\\\\n");
             }
-            errOut.write(toponym+" & "+errorList.size()+" & "+(sum/errorList.size())+" & "+sum+"\\\\\n");
-        }
-
-        errOut.close();
-
+            
+            errOut.close();
+            
         } catch(Exception e) {
             e.printStackTrace();
             System.exit(1);
