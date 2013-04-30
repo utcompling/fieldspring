@@ -3,7 +3,7 @@
 corpusname=$1; # tr or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
-modelsdir=wistr-models-$corpusname$split/;
+modelsdir=wistr-models-$corpusname$split-gt/;
 if [ corpusname == "cwar" ]; then
     sercorpusprefix=cwar
 else
@@ -25,81 +25,109 @@ logfile=enwiki-$logfileprefix$split-100.log;
 
 mem=8g;
 
-function printres {
+function prettyprint {
+    echo $1 "&" $2 "&" $3 "&" $4
+}
 
+function getr1 {
     if [ $topidmethod == "ner" ]; then
-
-        precision=`grep -A35 "$1" temp-results.txt | grep "P: " | sed -e 's/^.*: //'`
-        recall=`grep -A35 "$1" temp-results.txt | grep "R: " | sed -e 's/^.*: //'`
-        fscore=`grep -A35 "$1" temp-results.txt | grep "F: " | sed -e 's/^.*: //'`
-
-        echo $1 "&" $precision "&" $recall "&" $fscore
-
+        echo `grep -A50 "$1" temp-results.txt | grep "P: " | tail -1 | sed -e 's/^.*: //'`
     else
-
-        mean=`grep -A35 "$1" temp-results.txt | grep "Mean error distance (km): " | sed -e 's/^.*: //'`
-        median=`grep -A35 "$1" temp-results.txt | grep "Median error distance (km): " | sed -e 's/^.*: //'`
-        accuracy=`grep -A35 "$1" temp-results.txt | grep "F: " | sed -e 's/^.*: //'`
-        
-        echo $1 "&" $mean "&" $median "&" $accuracy
-
+        echo `grep -A50 "$1" temp-results.txt | grep "Mean error distance (km): " | tail -1 | sed -e 's/^.*: //'`
     fi
 }
 
-#function getmean {
-#    echo `grep -A25 "$1" temp-results.txt | grep "Mean error distance (km): " | sed -e 's/^.*: //'`
-#}
+function getr2 {
+    if [ $topidmethod == "ner" ]; then
+        echo `grep -A50 "$1" temp-results.txt | grep "R: " | tail -1 | sed -e 's/^.*: //'`
+    else
+        echo `grep -A50 "$1" temp-results.txt | grep "Median error distance (km): " | tail -1 | sed -e 's/^.*: //'`
+    fi
+}
+
+function getr3 {
+    echo `grep -A50 "$1" temp-results.txt | grep "F: " | tail -1 | sed -e 's/^.*: //'`
+}
+
+function printres {
+
+    r1=`getr1 $1`
+    r2=`getr2 $2`
+    r3=`getr3 $3`
+
+    prettyprint $1 $r1 $r2 $r3
+
+}
 
 if [ -e temp-results.txt ]; then
     rm temp-results.txt
 fi
 
-# Good to go
 echo "\oracle" >> temp-results.txt
 fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r random -oracle >> temp-results.txt
 printres "\oracle"
 
-# Good to go
+r1=""
+r2=""
+r3=""
 for i in 1 2 3
 do
   echo "\rand"$i >> temp-results.txt
   fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r random >> temp-results.txt
-  printres "\rand"$i
+  r1+=`getr1 "\rand$i"`" "
+  r2+=`getr2 "\rand$i"`" "
+  r3+=`getr3 "\rand$i"`" "
 done
+r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
+r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`
+r3=`fieldspring run opennlp.fieldspring.tr.util.Average $r3`
+prettyprint "\rand" $r1 $r2 $r3
 
-# Good to go
 echo "\population" >> temp-results.txt
 fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r pop >> temp-results.txt
 printres "\population"
 
-# Good to go
+r1=""
+r2=""
+r3=""
 for i in 1 2 3
 do
   echo "\spider"$i >> temp-results.txt
   fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 10 >> temp-results.txt
-  printres "\spider"$i
+  r1+=`getr1 "\rand$i"`" "
+  r2+=`getr2 "\rand$i"`" "
+  r3+=`getr3 "\rand$i"`" "
 done
+r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
+r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`
+r3=`fieldspring run opennlp.fieldspring.tr.util.Average $r3`
+prettyprint "\spider" $r1 $r2 $r3
 
-#echo "\tripdl" >> temp-results.txt
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pdg
-#printres "\tripdl"
+echo "\tripdl" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pdg >> temp-results.txt
+printres "\tripdl"
 
-#echo "\wistr" >> temp-results.txt
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r maxent
-#printres "\wistr"
+echo "\wistr" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r maxent >> temp-results.txt
+printres "\wistr"
 
-#echo '--- (Necessary for next step) ---';
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme
-#echo '---';
+echo "Necessary for next step:" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pme >> temp-results.txt
 
-#echo "\wistr+\spider" >> temp-results.txt
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
-#printres "\wistr+\spider"
+echo "\wistr+\spider" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf >> temp-results.txt
+r1=`getr1 "\wistr+"`
+r2=`getr2 "\wistr+"`
+r3=`getr3 "\wistr+"`
+prettyprint "\wistr+\spider" $r1 $r2 $r3
 
-#echo "\trawl" >> temp-results.txt
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob
-#printres "\trawl"
+echo "\trawl" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob >> temp-results.txt
+printres "\trawl"
 
-#echo "\trawl+\spider" >> temp-results.txt
-#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf
-#printres "\trawl+\spider"
+echo "\trawl+\spider" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r wmd -it 10 -rwf >> temp-results.txt
+r1=`getr1 "\trawl+"`
+r2=`getr2 "\trawl+"`
+r3=`getr3 "\trawl+"`
+prettyprint "\trawl+\spider" $r1 $r2 $r3
