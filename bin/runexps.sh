@@ -21,7 +21,13 @@ if [ corpusname == "cwar" ]; then
 else
     logfileprefix=trconll
 fi
-logfile=enwiki-$logfileprefix$split-100.log;
+if [ corpusname == "cwar" ]; then
+    logfilesuffix="-20spd"
+else
+    logfilesuffix=""
+fi
+
+logfile=enwiki-$logfileprefix$split$logfilesuffix-100.log;
 
 mem=8g;
 
