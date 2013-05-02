@@ -9,7 +9,6 @@ if [ $corpusname == "cwar" ]; then
 else
     sercorpusprefix=trf
 fi
-echo $sercorpusprefix;
 if [ $corpusname == "cwar" ]; then
     sercorpussuffix="-20spd"
 else
