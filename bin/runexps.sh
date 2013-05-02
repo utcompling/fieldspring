@@ -4,24 +4,25 @@ corpusname=$1; # tr or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
 modelsdir=wistr-models-$corpusname$split-gt/;
-if [ corpusname == "cwar" ]; then
+if [ $corpusname == "cwar" ]; then
     sercorpusprefix=cwar
 else
     sercorpusprefix=trf
 fi
-if [ corpusname == "cwar" ]; then
+echo $sercorpusprefix;
+if [ $corpusname == "cwar" ]; then
     sercorpussuffix="-20spd"
 else
     sercorpussuffix=""
 fi
 sercorpusfile=$sercorpusprefix$split-$topidmethod-g1dpc$sercorpussuffix.ser.gz;
 corpusdir=${4%/}/$split/; # fourth argument is path to corpus in XML format
-if [ corpusname == "cwar" ]; then
+if [ $corpusname == "cwar" ]; then
     logfileprefix=cwar
 else
     logfileprefix=trconll
 fi
-if [ corpusname == "cwar" ]; then
+if [ $corpusname == "cwar" ]; then
     logfilesuffix="-20spd"
 else
     logfilesuffix=""
