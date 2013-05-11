@@ -100,9 +100,9 @@ for i in 1 2 3
 do
   echo "\spider"$i >> temp-results.txt
   fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 10 >> temp-results.txt
-  r1+=`getr1 "\rand$i"`" "
-  r2+=`getr2 "\rand$i"`" "
-  r3+=`getr3 "\rand$i"`" "
+  r1+=`getr1 "\spider$i"`" "
+  r2+=`getr2 "\spider$i"`" "
+  r3+=`getr3 "\spider$i"`" "
 done
 r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
 r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`

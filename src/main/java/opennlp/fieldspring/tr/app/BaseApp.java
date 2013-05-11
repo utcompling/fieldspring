@@ -71,6 +71,7 @@ public class BaseApp {
         PROB,
         BAYES_RULE,
         CONSTRUCTION_TPP,
+        ACO_TPP,
         HEURISTIC_TPP
     }
     protected Enum<RESOLVER_TYPE> resolverType = RESOLVER_TYPE.BASIC_MIN_DIST;
@@ -229,6 +230,8 @@ public class BaseApp {
                             resolverType = RESOLVER_TYPE.HEURISTIC_TPP;
                         else if(value.toLowerCase().startsWith("c"))
                             resolverType = RESOLVER_TYPE.CONSTRUCTION_TPP;
+                        else if(value.toLowerCase().startsWith("a"))
+                            resolverType = RESOLVER_TYPE.ACO_TPP;
                         else
                             resolverType = RESOLVER_TYPE.BASIC_MIN_DIST;
                     }

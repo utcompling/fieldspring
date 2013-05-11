@@ -13,11 +13,13 @@ class ConstructionTPPSolver extends TPPSolver {
 
     val unresolvedToponymMentions = getUnresolvedToponymMentions(tppInstance)
 
+    val resolvedToponymMentions = new scala.collection.mutable.HashMap[ToponymMention, Market]
+
     while(!unresolvedToponymMentions.isEmpty) {
       //println(unresolvedToponymMentions.size)
-      val bestMarketAndIndexes = chooseBestMarketAndIndexes(unvisitedMarkets, unresolvedToponymMentions, tour, tppInstance)
+      val bestMarketAndIndexes = ConstructionTPPSolver.chooseBestMarketAndIndexes(unvisitedMarkets, unresolvedToponymMentions, tour, tppInstance)
       
-      insertIntoTour(tour, bestMarketAndIndexes._1, bestMarketAndIndexes._3, tppInstance)
+      ConstructionTPPSolver.insertIntoTour(tour, bestMarketAndIndexes._1, bestMarketAndIndexes._3, resolvedToponymMentions, tppInstance)
 
       unvisitedMarkets.remove(bestMarketAndIndexes._2)
 
@@ -28,6 +30,10 @@ class ConstructionTPPSolver extends TPPSolver {
 
     tour.toList
   }
+
+}
+
+object ConstructionTPPSolver {
 
   // First index is index in parameter named markets containing the chosen market; second index is optimal position in the tour to insert it
   def chooseBestMarketAndIndexes(markets:ArrayList[Market], unresolvedToponymMentions:scala.collection.mutable.HashSet[ToponymMention], tour:ArrayList[MarketVisit], tppInstance:TPPInstance): (Market, Int, Int) = {
@@ -48,52 +54,6 @@ class ConstructionTPPSolver extends TPPSolver {
     //markets.zipWithIndex.maxBy(p => p._1.locations.map(_._1).map(tm => if(unresolvedToponymMentions.contains(tm)) 1 else 0).sum) // market with the greatest number of goods (types) I haven't puchased yet; but this is bugged, so why does it work well? -- it doesn't seem to anymore after fixing other bugs
     //markets.zipWithIndex.maxBy(_._1.locations.map(_._2).map(_.loc).toSet.size) // biggest market by types
     //markets.zipWithIndex.maxBy(_._1.size) // biggest market by tokens
-  }
-
-  def countOverlap(pls:Map[ToponymMention, PotentialLocation], urtms:scala.collection.mutable.HashSet[ToponymMention]): Int = {
-    var sum = 0
-    for(tm <- pls.map(_._1))
-      if(urtms.contains(tm))
-        sum += 1
-
-    sum
-  }
-
-  def insertIntoTour(tour:ArrayList[MarketVisit], market:Market, index:Int, tppInstance:TPPInstance) {
-    val marketVisit = new MarketVisit(market)
-
-    // Buy everything at the new market
-    for((topMen, potLoc) <- market.locations) {
-      marketVisit.purchasedLocations.put(topMen, potLoc)
-    }
-
-    val pc = tppInstance.purchaseCoster
-
-    // Unbuy goods that have already been purchased elsewhere for the same or cheaper prices
-    for(existingMarketVisit <- tour) {
-      var index = 0
-      val purLocs = marketVisit.purchasedLocations.toList
-      while(index < purLocs.size) {
-      //for((topMen, newPotLoc) <- marketVisit.purchasedLocations) {
-        val topMen = purLocs(index)._1
-        val newPotLoc = purLocs(index)._2
-        val prevPotLoc = existingMarketVisit.purchasedLocations.getOrElse(topMen, null)
-        if(prevPotLoc != null) {
-          if(pc(existingMarketVisit.market, prevPotLoc) <= pc(marketVisit.market, newPotLoc)) {
-            //print(purLocs.size+" => ")
-            marketVisit.purchasedLocations.remove(topMen)
-            //println(purLocs.size)
-          }
-          else {
-            existingMarketVisit.purchasedLocations.remove(topMen)
-          }
-        }
-        index += 1
-      }
-    }
-
-    if(marketVisit.purchasedLocations.size > 0)
-      tour.insert(index, marketVisit) // This puts the market in the place that minimizes the added travel cost
   }
 
   def getBestCostIncreaseAndIndex(tour:ArrayList[MarketVisit], market:Market, tppInstance:TPPInstance): (Double, Int) = {
@@ -129,4 +89,63 @@ class ConstructionTPPSolver extends TPPSolver {
     }
   }
 
+  def countOverlap(pls:Map[ToponymMention, PotentialLocation], urtms:scala.collection.mutable.HashSet[ToponymMention]): Int = {
+    var sum = 0
+    for(tm <- pls.map(_._1))
+      if(urtms.contains(tm))
+        sum += 1
+
+    sum
+  }
+
+  def insertIntoTour(tour:ArrayList[MarketVisit], market:Market, index:Int, resolvedToponymMentions:scala.collection.mutable.HashMap[ToponymMention, Market], tppInstance:TPPInstance) {
+    val marketVisit = new MarketVisit(market)
+
+    val pc = tppInstance.purchaseCoster
+
+    // Buy goods that haven't been bought before or that are cheaper than when previously bought
+    for((topMen, potLoc) <- market.locations) {
+      if(resolvedToponymMentions.contains(topMen)) {
+        if(pc(resolvedToponymMentions(topMen), potLoc) > pc(market, potLoc)) {
+          marketVisit.purchasedLocations.put(topMen, potLoc)
+          resolvedToponymMentions.put(topMen, market)
+          
+        }
+      }
+      else {
+        marketVisit.purchasedLocations.put(topMen, potLoc)
+        resolvedToponymMentions.put(topMen, market)
+      }
+    }
+
+    // Unbuy goods that have already been purchased elsewhere for the same or cheaper
+    // prices. There should be a more efficient way to do this where we keep track of
+    // where purchased goods were purchased before, thereby not needing to iterate through
+    // all the markets already in the tour
+    for(existingMarketVisit <- tour) {
+      var index = 0
+      val purLocs = marketVisit.purchasedLocations.toList
+      while(index < purLocs.size) {
+      //for((topMen, newPotLoc) <- marketVisit.purchasedLocations) {
+        val topMen = purLocs(index)._1
+        val newPotLoc = purLocs(index)._2
+        val prevPotLoc = existingMarketVisit.purchasedLocations.getOrElse(topMen, null)
+        if(prevPotLoc != null) {
+          if(pc(existingMarketVisit.market, prevPotLoc) <= pc(marketVisit.market, newPotLoc)) {
+            //print(purLocs.size+" => ")
+            marketVisit.purchasedLocations.remove(topMen)
+            //println(purLocs.size)
+          }
+          else {
+            existingMarketVisit.purchasedLocations.remove(topMen)
+          }
+        }
+        index += 1
+      }
+    }
+
+    if(marketVisit.purchasedLocations.size > 0) {
+      tour.insert(index, marketVisit) // This puts the market in the place that minimizes the added travel cost
+    }
+  }
 }

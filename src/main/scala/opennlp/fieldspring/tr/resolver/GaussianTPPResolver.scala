@@ -9,10 +9,11 @@ import java.util.ArrayList
 
 import scala.collection.JavaConversions._
 
-class ConstructionTPPResolver(val dpc:Double,
-                              val threshold:Double,
-                              val corpus:StoredCorpus,
-                              val modelDirPath:String)
+class GaussianTPPResolver(val dpc:Double,
+                          val threshold:Double,
+                          val corpus:StoredCorpus,
+                          val modelDirPath:String,
+                          val doACO:Boolean)
   extends TPPResolver(new TPPInstance(
     //new MaxentPurchaseCoster(corpus, modelDirPath),
     new MultiPurchaseCoster(List(new GaussianPurchaseCoster,//new SimpleContainmentPurchaseCoster,
@@ -30,7 +31,7 @@ class ConstructionTPPResolver(val dpc:Double,
         tppInstance.markets = (new ClusterMarketCreator(doc, threshold)).apply
 
       // Apply a TPPSolver
-      val solver = new ConstructionTPPSolver
+      val solver = if(doACO) new ACOTPPSolver else new ConstructionTPPSolver
       val tour = solver(tppInstance)
       //println(doc.getId+" had a tour of length "+tour.size)
       if(doc.getId.equals("d94")) {
