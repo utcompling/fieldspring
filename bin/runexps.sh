@@ -32,7 +32,11 @@ logfile=enwiki-$logfileprefix$split$logfilesuffix-100.log;
 mem=8g;
 
 function prettyprint {
-    echo $1 "&" $2 "&" $3 "&" $4
+    if [ $topidmethod == "ner" ]; then
+        echo $1 "&" $2 "&" $3 "&" $4
+    else
+        echo $1 "&" $2 "&" $3 "&" $4 "&" $5
+    fi
 }
 
 function getr1 {
@@ -55,13 +59,18 @@ function getr3 {
     echo `grep -A50 "$1" temp-results.txt | grep "F: " | tail -1 | sed -e 's/^.*: //'`
 }
 
+function getr4 {
+    echo `grep -A50 "$1" temp-results.txt | grep "Fraction of distances within 161 km: " | tail -1 | sed -e 's/^.*: //'`
+}
+
 function printres {
 
     r1=`getr1 $1`
     r2=`getr2 $2`
     r3=`getr3 $3`
+    r4=`getr4 $4`
 
-    prettyprint $1 $r1 $r2 $r3
+    prettyprint $1 $r1 $r2 $r3 $r4
 
 }
 
@@ -76,6 +85,7 @@ printres "\oracle"
 r1=""
 r2=""
 r3=""
+r4=""
 for i in 1 2 3
 do
   echo "\rand"$i >> temp-results.txt
@@ -83,11 +93,13 @@ do
   r1+=`getr1 "\rand$i"`" "
   r2+=`getr2 "\rand$i"`" "
   r3+=`getr3 "\rand$i"`" "
+  r4+=`getr4 "\rand$i"`" "
 done
 r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
 r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`
 r3=`fieldspring run opennlp.fieldspring.tr.util.Average $r3`
-prettyprint "\rand" $r1 $r2 $r3
+r4=`fieldspring run opennlp.fieldspring.tr.util.Average $r4`
+prettyprint "\rand" $r1 $r2 $r3 $r4
 
 echo "\population" >> temp-results.txt
 fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r pop >> temp-results.txt
@@ -96,6 +108,7 @@ printres "\population"
 r1=""
 r2=""
 r3=""
+r4=""
 for i in 1 2 3
 do
   echo "\spider"$i >> temp-results.txt
@@ -103,11 +116,13 @@ do
   r1+=`getr1 "\spider$i"`" "
   r2+=`getr2 "\spider$i"`" "
   r3+=`getr3 "\spider$i"`" "
+  r4+=`getr4 "\spider$i"`" "
 done
 r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
 r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`
 r3=`fieldspring run opennlp.fieldspring.tr.util.Average $r3`
-prettyprint "\spider" $r1 $r2 $r3
+r4=`fieldspring run opennlp.fieldspring.tr.util.Average $r4`
+prettyprint "\spider" $r1 $r2 $r3 $r4
 
 echo "\tripdl" >> temp-results.txt
 fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob -pdg >> temp-results.txt
@@ -125,7 +140,8 @@ fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $
 r1=`getr1 "\wistr+"`
 r2=`getr2 "\wistr+"`
 r3=`getr3 "\wistr+"`
-prettyprint "\wistr+\spider" $r1 $r2 $r3
+r4=`getr4 "\wistr+"`
+prettyprint "\wistr+\spider" $r1 $r2 $r3 $r4
 
 echo "\trawl" >> temp-results.txt
 fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -l $logfile -r prob >> temp-results.txt
@@ -136,4 +152,21 @@ fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $
 r1=`getr1 "\trawl+"`
 r2=`getr2 "\trawl+"`
 r3=`getr3 "\trawl+"`
-prettyprint "\trawl+\spider" $r1 $r2 $r3
+r4=`getr4 "\trawl+"`
+prettyprint "\trawl+\spider" $r1 $r2 $r3 $r4
+
+echo "TextConstructTPPGrid" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -dpc 10 >> temp-results.txt
+printres "TextConstructTPPGrid"
+
+echo "TextConstructTPPCluster" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -t 250 >> temp-results.txt
+printres "TextConstructTPPCluster"
+
+echo "TextACOTPPGrid" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -dpc 10 >> temp-results.txt
+printres "TextACOTPPGrid"
+
+echo "TextACOTPPCluster" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -t 250 >> temp-results.txt
+printres "TextACOTPPCluster"
