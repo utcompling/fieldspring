@@ -67,10 +67,12 @@ object ConstructionTPPSolver {
     else {
       var minAddedCost = Double.PositiveInfinity
       var bestIndex = -1
+      //println(tour.size)
       for(index <- 0 to tour.size) {
         var addedCost = 0.0
         if(index == 0) {
           addedCost = tc(market, tour(0).market)
+          //println(addedCost)
         }
         else if(index == tour.size) {
           addedCost = tc(tour(tour.size-1).market, market)
@@ -145,6 +147,7 @@ object ConstructionTPPSolver {
     }
 
     if(marketVisit.purchasedLocations.size > 0) {
+      //println(index)
       tour.insert(index, marketVisit) // This puts the market in the place that minimizes the added travel cost
     }
   }

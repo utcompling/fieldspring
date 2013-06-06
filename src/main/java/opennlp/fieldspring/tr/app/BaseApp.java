@@ -29,6 +29,9 @@ public class BaseApp {
     private String serializedCorpusOutputPath = null;
     private String maxentModelDirInputPath = null;
 
+    private String articleInfoPath = null;
+    private String linkPath = null;
+
     private double popComponentCoefficient = 0.0;
     private boolean dgProbOnly = false;
     private boolean meProbOnly = false;
@@ -143,6 +146,9 @@ public class BaseApp {
 
         options.addOption("dpc", "degrees-per-cell", true, "degrees per cell for grid-based TPP resolvers");
         options.addOption("t", "threshold", true, "threshold in kilometers for agglomerative clustering");
+
+        options.addOption("a", "article-info", true, "path to article info file from Wiki preprocess");
+        options.addOption("li", "links", true, "path to link file from Wiki preprocess");
 
         options.addOption("ner", "named-entity-recognizer", true,
         "option for using High Recall NER");
@@ -267,12 +273,15 @@ public class BaseApp {
                     else//if(value.toLowerCase().startsWith("p"))
                         corpusFormat = CORPUS_FORMAT.PLAIN;
                     break;
-                    /*case 't':
-                    readAsTR = true;
-                    break;*/
                 case 'l':
                     if(option.getOpt().equals("l"))
                         logFilePath = value;
+                    else if(option.getOpt().equals("li"))
+                        linkPath = value;
+                    break;
+                case 'a':
+                    if(option.getOpt().equals("a"))
+                        articleInfoPath = value;
                     break;
                 case 'k':
                     if(option.getOpt().equals("knn"))
@@ -462,6 +471,14 @@ public class BaseApp {
 
     public double getThreshold() {
         return threshold;
+    }
+
+    public String getArticleInfoPath() {
+        return articleInfoPath;
+    }
+
+    public String getLinkPath() {
+        return linkPath;
     }
 
 	public void setHighRecallNER(boolean highRecallNER) {

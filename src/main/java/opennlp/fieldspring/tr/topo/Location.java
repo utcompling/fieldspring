@@ -182,6 +182,16 @@ public class Location implements Serializable {
     return this.getRegion().distanceInKm(other.getRegion());
   }
 
+  public double distance(Coordinate coord) {
+    double minDist = Double.POSITIVE_INFINITY;
+    for(Coordinate rep : this.getRegion().getRepresentatives()) {
+        double dist = rep.distance(coord);
+        if(dist < minDist)
+            minDist = dist;
+    }
+    return minDist;
+  }
+
   @Override
   public String toString() {
     return String.format("%8d (%s), %s, (%s), %d", this.id, this.name, this.type, this.region.getCenter(), this.population);
