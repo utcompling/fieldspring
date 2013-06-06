@@ -34,16 +34,20 @@ abstract class TPPSolver {
 
   def getSolutionMap(tour:List[MarketVisit]): Map[(String, Int), Int] = {
 
-    val s = new scala.collection.mutable.HashSet[(String, Int)]
+    //val s = new scala.collection.mutable.HashSet[(String, Int)]
 
-    (for(marketVisit <- tour) yield {
-      (for(potLoc <- marketVisit.purchasedLocations.map(_._2)) yield {
-        //if(s.contains((potLoc.docId, potLoc.tokenIndex)))
-          //println("Already had "+potLoc.docId+":"+potLoc.tokenIndex)
-        s.add((potLoc.docId, potLoc.tokenIndex))
-        ((potLoc.docId, potLoc.tokenIndex), potLoc.gazIndex)
-      })
-    }).flatten.toMap
+    if(tour != null) {
+      (for(marketVisit <- tour) yield {
+        (for(potLoc <- marketVisit.purchasedLocations.map(_._2)) yield {
+          //if(s.contains((potLoc.docId, potLoc.tokenIndex)))
+            //println("Already had "+potLoc.docId+":"+potLoc.tokenIndex)
+          //s.add((potLoc.docId, potLoc.tokenIndex))
+          ((potLoc.docId, potLoc.tokenIndex), potLoc.gazIndex)
+        })
+      }).flatten.toMap
+    }
+    else
+      null
   }
 
   def writeKML(tour:List[MarketVisit], filename:String) {

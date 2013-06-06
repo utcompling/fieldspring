@@ -109,13 +109,16 @@ class ACOTPPSolver(factory:GaussianAntFactory, runningPopulation:ArrayList[AntPr
           //done = true
           //tours.add(ant.tour)
           val curTourCost = tppInstance.computeTourCost(ant.tour.toList)
-          if(curTourCost < cheapestTourCost) {
+          if(curTourCost < cheapestTourCost || (curTourCost == Double.PositiveInfinity && cheapestTourCost == Double.PositiveInfinity)) {
             bestTour = ACOTPPSolver.copyTour(ant.tour)
             cheapestTourCost = curTourCost
+
+            //println("Found a new best tour of length "+bestTour.size+" and cost "+cheapestTourCost)
           }
           ACOTPPSolver.addPheremones(pheremones, ant.tour, tppInstance)
           toursFound += 1
-          if(toursFound >= NUM_ANTS * 2/* || (toursFound >= 1 && localIterations > NUM_ANTS * unvisitedMarkets.size)*/) // Stopping criterion
+          //println(toursFound+" tours found")
+          if(toursFound >= NUM_ANTS * 2 && bestTour != null/* || (toursFound >= 1 && localIterations > NUM_ANTS * unvisitedMarkets.size)*/) // Stopping criterion
             done = true
 
           // Start this ant over:
@@ -161,7 +164,7 @@ class ACOTPPSolver(factory:GaussianAntFactory, runningPopulation:ArrayList[AntPr
 
       localIterations += 1
 
-      if(toursFound  >= 1 && localIterations > NUM_ANTS * unvisitedMarkets.size) // Alternative stopping criterion
+      if(localIterations > NUM_ANTS * unvisitedMarkets.size) // Alternative stopping criterion
           done = true
     }
 
@@ -180,7 +183,10 @@ class ACOTPPSolver(factory:GaussianAntFactory, runningPopulation:ArrayList[AntPr
     for(ant <- ants)
       runningPopulation.add(new AntProperty(ant.a, ant.s, ant.v, ant.d))
 
-    bestTour.toList
+    if(bestTour != null)
+      bestTour.toList
+    else
+      null
   }
 }
 

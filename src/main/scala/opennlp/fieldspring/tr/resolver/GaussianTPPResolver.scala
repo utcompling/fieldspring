@@ -30,6 +30,8 @@ class GaussianTPPResolver(val dpc:Double,
     //new GaussianTravelCoster)) {
     //new SimpleDistanceTravelCoster)) {
 
+  val rand = new scala.util.Random
+
   def disambiguate(corpus:StoredCorpus): StoredCorpus = {
 
     if(doACO) {
@@ -50,13 +52,16 @@ class GaussianTPPResolver(val dpc:Double,
 
         for(doc <- corpus) {
 
+          //println("Doc: "+doc.getId)
+
           tppInstance.travelCoster.setDoc(doc)
 
           tppInstance.markets = docsToMarkets.getOrElse(doc.getId, null)
           if(tppInstance.markets == null) {
+            //println(tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])
             tppInstance.markets =
-              if(threshold < 0) (new GridMarketCreator(doc, dpc)).apply
-              else (new ClusterMarketCreator(doc, threshold)).apply
+              if(threshold < 0) (new GridMarketCreator(doc, dpc, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
+              else (new ClusterMarketCreator(doc, threshold, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
             docsToMarkets.put(doc.getId, tppInstance.markets)
           }
 
@@ -81,9 +86,10 @@ class GaussianTPPResolver(val dpc:Double,
             for(token <- docAsArray) {
               if(token.isToponym && token.asInstanceOf[Toponym].getAmbiguity > 0) {
                 val toponym = token.asInstanceOf[Toponym]
-                if(solutionMap.contains((doc.getId, tokIndex))) {
+                if(solutionMap != null && solutionMap.contains((doc.getId, tokIndex)))
                   toponym.setSelectedIdx(solutionMap((doc.getId, tokIndex)))
-                }
+                else if(solutionMap == null) // No solution could be found, so back off to random
+                  toponym.setSelectedIdx(rand.nextInt(toponym.getAmbiguity))
               }
               
               tokIndex += 1
@@ -107,9 +113,9 @@ class GaussianTPPResolver(val dpc:Double,
         tppInstance.travelCoster.setDoc(doc)
 
         if(threshold < 0)
-          tppInstance.markets = (new GridMarketCreator(doc, dpc)).apply
+          tppInstance.markets = (new GridMarketCreator(doc, dpc, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
         else
-          tppInstance.markets = (new ClusterMarketCreator(doc, threshold)).apply
+          tppInstance.markets = (new ClusterMarketCreator(doc, threshold, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
 
         val tour = solver(tppInstance)
         val solutionMap = solver.getSolutionMap(tour)
@@ -119,9 +125,10 @@ class GaussianTPPResolver(val dpc:Double,
         for(token <- docAsArray) {
           if(token.isToponym && token.asInstanceOf[Toponym].getAmbiguity > 0) {
             val toponym = token.asInstanceOf[Toponym]
-            if(solutionMap.contains((doc.getId, tokIndex))) {
+            if(solutionMap != null && solutionMap.contains((doc.getId, tokIndex)))
               toponym.setSelectedIdx(solutionMap((doc.getId, tokIndex)))
-            }
+            else if(solutionMap == null) // No solution could be found, so back off to random
+              toponym.setSelectedIdx(rand.nextInt(toponym.getAmbiguity))
           }
           tokIndex += 1
         }
