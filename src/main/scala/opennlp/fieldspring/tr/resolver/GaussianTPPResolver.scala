@@ -59,7 +59,7 @@ class GaussianTPPResolver(val dpc:Double,
               else (new ClusterMarketCreator(doc, threshold)).apply
             docsToMarkets.put(doc.getId, tppInstance.markets)
           }
-          
+
           val solver = new ACOTPPSolver(factory, population)
           
           var tour = solver(tppInstance)
