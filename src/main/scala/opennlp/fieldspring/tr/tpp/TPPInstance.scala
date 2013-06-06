@@ -8,18 +8,22 @@ class TPPInstance(val purchaseCoster:PurchaseCoster,
   var markets:List[Market] = null  
 
   def computeTourCost(tour:List[MarketVisit]): Double = {
-    var cost = 0.0
-    var prevMV:MarketVisit = null
-    for(mv <- tour) {
-      if(prevMV != null)
-        cost += travelCoster(prevMV.market, mv.market)
-
-      for((topMen, potLoc) <- mv.purchasedLocations)
-        cost += purchaseCoster(mv.market, potLoc)
-
-      prevMV = mv
+    if(tour == null)
+      Double.PositiveInfinity
+    else {
+      var cost = 0.0
+      var prevMV:MarketVisit = null
+      for(mv <- tour) {
+        if(prevMV != null)
+          cost += travelCoster(prevMV.market, mv.market)
+        
+        for((topMen, potLoc) <- mv.purchasedLocations)
+          cost += purchaseCoster(mv.market, potLoc)
+        
+        prevMV = mv
+      }
+      cost
     }
-    cost
   }
 }
 

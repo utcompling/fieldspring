@@ -8,7 +8,7 @@ import java.util.ArrayList
 
 import scala.collection.JavaConversions._
 
-class ClusterMarketCreator(doc:Document[StoredToken], val thresholdInKm:Double) extends MarketCreator(doc) {
+class ClusterMarketCreator(doc:Document[StoredToken], val thresholdInKm:Double, val purchaseCoster:MaxentPurchaseCoster = null) extends MarketCreator(doc) {
 
   val threshold = thresholdInKm / 6372.8
 
@@ -59,8 +59,15 @@ class ClusterMarketCreator(doc:Document[StoredToken], val thresholdInKm:Double) 
     // Turn clusters into Markets:
     (for(cluster <- clusters) yield {
       val tmsToPls = new scala.collection.mutable.HashMap[ToponymMention, PotentialLocation]
-      for(potLoc <- cluster.potLocs)
-        tmsToPls.put(new ToponymMention(potLoc.docId, potLoc.tokenIndex), potLoc)
+      for(potLoc <- cluster.potLocs) {
+        val tm = new ToponymMention(potLoc.docId, potLoc.tokenIndex)
+        val curPotLoc = tmsToPls.getOrElse(tm, null)
+        if(purchaseCoster == null || curPotLoc == null || purchaseCoster(null, potLoc) < purchaseCoster(null, curPotLoc))
+          tmsToPls.put(tm, potLoc)
+
+        //else if(purchaseCoster != null && curPotLoc != null /*&& purchaseCoster(null, potLoc) >= purchaseCoster(null, curPotLoc)*/)
+        //  println("Market already had a "+potLoc+" with cost "+purchaseCoster(null, curPotLoc)+", versus the new "+purchaseCoster(null, potLoc))
+      }
       new Market(cluster.id, tmsToPls.toMap)
     }).toList
   }
