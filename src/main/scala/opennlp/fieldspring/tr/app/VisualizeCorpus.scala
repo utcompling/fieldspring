@@ -8,6 +8,7 @@ import de.fhpotsdam.unfolding.geo._
 import de.fhpotsdam.unfolding.events._
 import de.fhpotsdam.unfolding.utils._
 import de.fhpotsdam.unfolding.providers.Microsoft
+import de.fhpotsdam.unfolding.providers.Google
 import controlP5._
 
 import opennlp.fieldspring.tr.text._
@@ -36,7 +37,7 @@ class VisualizeCorpus extends PApplet {
   val INIT_WIDTH = if(VisualizeCorpus.inputWidth > 0) VisualizeCorpus.inputWidth else 1280
   val INIT_HEIGHT = if(VisualizeCorpus.inputHeight > 0) VisualizeCorpus.inputHeight else 720
 
-  val RADIUS = 10
+  val RADIUS = 8
 
   val BORDER_WIDTH = 10
   val TEXTAREA_WIDTH = 185
@@ -77,7 +78,7 @@ class VisualizeCorpus extends PApplet {
 
     cp5 = new ControlP5(this)
 
-    mapDetail = new de.fhpotsdam.unfolding.Map(this, "detail", mapX, BORDER_WIDTH, mapWidth, mapHeight/*, true, false, new Microsoft.AerialProvider*/)
+    mapDetail = new de.fhpotsdam.unfolding.Map(this, "detail", mapX, BORDER_WIDTH, mapWidth, mapHeight, true, false, new Microsoft.RoadProvider/*new Google.GoogleMapProvider*/)
     mapDetail.setZoomRange(2, 10)
     //mapDetail.zoomToLevel(4)
     mapDetail.zoomAndPanTo(new Location(25.0f, 12.0f), 2) // map center
@@ -185,13 +186,16 @@ class VisualizeCorpus extends PApplet {
                fill(200, 0, 0, 100)
              else
                fill(0, 200, 0, 100)
-             ellipse(xy(0), xy(1), RADIUS*2, RADIUS*2)
+             val rad = math.max((math.log(topolist.size)*6).toInt, RADIUS)
+             ellipse(xy(0), xy(1), rad*2, rad*2)//RADIUS*2, RADIUS*2)
              fill(1)
              val num = topolist.size
              if(num < 10)
-               text(num, xy(0)-(RADIUS.toFloat/3.2).toInt, xy(1)+(RADIUS.toFloat/2.1).toInt)
+               text(num, xy(0)-(RADIUS.toFloat/2.2).toInt, xy(1)+(RADIUS.toFloat/1.6).toInt)
+             else if(num < 100)
+               text(num, xy(0)-(RADIUS.toFloat/1.1).toInt, xy(1)+(RADIUS.toFloat/1.6).toInt)
              else
-               text(num, xy(0)-(RADIUS.toFloat/1.3).toInt, xy(1)+(RADIUS.toFloat/2.1).toInt)
+               text(num, xy(0)-(RADIUS.toFloat/0.7).toInt, xy(1)+(RADIUS.toFloat/1.6).toInt)
              
              Some(((lat,lng),topolist))
            }
@@ -246,7 +250,8 @@ class VisualizeCorpus extends PApplet {
       var clickedCirc = false
       for(((lat, lng), topolist) <- onScreen) {
         val xy:Array[Float] = mapDetail.getScreenPositionFromLocation(new de.fhpotsdam.unfolding.geo.Location(lat, lng))
-        if(PApplet.dist(mouseX, mouseY, xy(0), xy(1)) <= RADIUS) {
+        val rad = math.max((math.log(topolist.size)*6).toInt, RADIUS)
+        if(PApplet.dist(mouseX, mouseY, xy(0), xy(1)) <= rad) {
           oldSelectedCirc = selectedCirc
           selectedCirc = (lat, lng, topolist)
           clickedCirc = true
