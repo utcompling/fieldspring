@@ -29,6 +29,7 @@ public class BaseApp {
     private String serializedCorpusOutputPath = null;
     private String maxentModelDirInputPath = null;
 
+    private String marketProbPath = null;
     private String articleInfoPath = null;
     private String linkPath = null;
 
@@ -147,6 +148,7 @@ public class BaseApp {
         options.addOption("dpc", "degrees-per-cell", true, "degrees per cell for grid-based TPP resolvers");
         options.addOption("t", "threshold", true, "threshold in kilometers for agglomerative clustering");
 
+        options.addOption("m", "market-prob", true, "path to market probabilities from LinkTravelWriter");
         options.addOption("a", "article-info", true, "path to article info file from Wiki preprocess");
         options.addOption("li", "links", true, "path to link file from Wiki preprocess");
 
@@ -288,7 +290,9 @@ public class BaseApp {
                         knnForLP = Integer.parseInt(value);
                     break;
                 case 'm':
-                    if(option.getOpt().equals("minlat"))
+                    if(option.getOpt().equals("m"))
+                        marketProbPath = value;
+                    else if(option.getOpt().equals("minlat"))
                         minLat = Double.parseDouble(value.replaceAll("n", "-"));
                     else if(option.getOpt().equals("maxlat"))
                         maxLat = Double.parseDouble(value.replaceAll("n", "-"));
@@ -479,6 +483,10 @@ public class BaseApp {
 
     public String getLinkPath() {
         return linkPath;
+    }
+
+    public String getMarketProbPath() {
+        return marketProbPath;
     }
 
 	public void setHighRecallNER(boolean highRecallNER) {

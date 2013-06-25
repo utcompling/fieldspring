@@ -20,18 +20,21 @@ class MaxentResolver(val logFilePath:String,
 
   def disambiguate(corpus:StoredCorpus): StoredCorpus = {
 
-    val modelDir = new File(modelDirPath)
+    val toponymsToModels:Map[String, AbstractModel] = 
+    (for(oneModelDirPath <- modelDirPath.split(":")) yield {
+      val modelDir = new File(oneModelDirPath)
 
-    val toponymsToModels:Map[String, AbstractModel] =
-    (for(file <- modelDir.listFiles.filter(_.getName.endsWith(".mxm"))) yield {
-      val dataInputStream = new DataInputStream(new FileInputStream(file));
-      val reader = new BinaryGISModelReader(dataInputStream)
-      val model = reader.getModel
-
-      //println("Found model for "+file.getName.dropRight(4))
-
-      (file.getName.dropRight(4).replaceAll("_", " "), model)
-    }).toMap
+      //val toponymsToModels:Map[String, AbstractModel] =
+        (for(file <- modelDir.listFiles.filter(_.getName.endsWith(".mxm"))) yield {
+          val dataInputStream = new DataInputStream(new FileInputStream(file));
+          val reader = new BinaryGISModelReader(dataInputStream)
+          val model = reader.getModel
+          
+          //println("Found model for "+file.getName.dropRight(4))
+          
+          (file.getName.dropRight(4).replaceAll("_", " "), model)
+        })
+    }).flatten.toMap
 
     for(doc <- corpus) {
       val docAsArray = TextUtil.getDocAsArray(doc)
@@ -57,10 +60,19 @@ class MaxentResolver(val logFilePath:String,
       }
     }
 
-    // Backoff to DocDist:
-    val docDistResolver = new DocDistResolver(logFilePath)
-    docDistResolver.overwriteSelecteds = false
-    docDistResolver.disambiguate(corpus)
+    if(logFilePath != null) {
+      println("Backing off to DocDist resolver...")
+      // Backoff to DocDist:
+      val docDistResolver = new DocDistResolver(logFilePath)
+      docDistResolver.overwriteSelecteds = false
+      docDistResolver.disambiguate(corpus)
+    }
+    else {
+      println("Backing off to random resolver...")
+      val randResolver = new RandomResolver
+      randResolver.overwriteSelecteds = false
+      randResolver.disambiguate(corpus)
+    }
 
     corpus
   }

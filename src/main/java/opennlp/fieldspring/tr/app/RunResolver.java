@@ -148,13 +148,13 @@ public class RunResolver extends BaseApp {
             System.out.println("Running CONSTRUCTION TPP resolver...");
 
             resolver = new GaussianTPPResolver(currentRun.getDPC(), currentRun.getThreshold(), testCorpus, currentRun.getMaxentModelDirInputPath(),
-                                               currentRun.getArticleInfoPath(), currentRun.getLinkPath(), currentRun.getSerializedGazetteerPath(), false, currentRun.getNumIterations());
+                                               currentRun.getArticleInfoPath(), currentRun.getLinkPath(), currentRun.getMarketProbPath(), currentRun.getSerializedGazetteerPath(), false, currentRun.getNumIterations());
         }
         else if(currentRun.getResolverType() == RESOLVER_TYPE.ACO_TPP) {
             System.out.println("Running ACO TPP resolver...");
 
             resolver = new GaussianTPPResolver(currentRun.getDPC(), currentRun.getThreshold(), testCorpus, currentRun.getMaxentModelDirInputPath(),
-                                               currentRun.getArticleInfoPath(), currentRun.getLinkPath(), currentRun.getSerializedGazetteerPath(), true, currentRun.getNumIterations());
+                                               currentRun.getArticleInfoPath(), currentRun.getLinkPath(), currentRun.getMarketProbPath(), currentRun.getSerializedGazetteerPath(), true, currentRun.getNumIterations());
         }
         else {//if(getResolverType() == RESOLVER_TYPE.BASIC_MIN_DIST) {
             System.out.print("Running BASIC MINIMUM DISTANCE resolver...");

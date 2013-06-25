@@ -19,6 +19,7 @@ class GaussianTPPResolver(val dpc:Double,
                           val modelDirPath:String,
                           val articleInfoPath:String,
                           val linkPath:String,
+                          val marketProbPath:String,
                           val gazPath:String,
                           val doACO:Boolean,
                           val acoIterations:Int)
@@ -26,7 +27,9 @@ class GaussianTPPResolver(val dpc:Double,
     //new MaxentPurchaseCoster(corpus, modelDirPath),
     new MultiPurchaseCoster(List(new GaussianPurchaseCoster,//new SimpleContainmentPurchaseCoster,
                                  new MaxentPurchaseCoster(corpus, modelDirPath))),
-    if(articleInfoPath != null && linkPath != null) new LinkTravelCoster(articleInfoPath, linkPath, GaussianTPPResolver.loadGaz(gazPath)) else new GaussianTravelCoster)) {
+    if(articleInfoPath != null && linkPath != null) new LinkTravelCoster(articleInfoPath, linkPath, GaussianTPPResolver.loadGaz(gazPath))
+    else if(marketProbPath != null) new FileTravelCoster(marketProbPath, corpus, dpc)
+    else new GaussianTravelCoster)) {
     //new GaussianTravelCoster)) {
     //new SimpleDistanceTravelCoster)) {
 
