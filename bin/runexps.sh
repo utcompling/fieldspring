@@ -4,6 +4,8 @@ corpusname=$1; # tr or cwar
 split=$2; # dev or test
 topidmethod=$3; # gt or ner
 modelsdir=wistr-models-$corpusname$split-gt/;
+listrmodelsdir=listr-models-$corpusname$split-gt/;
+wistrlistrmodelsdir=wistrlistr-models-$corpusname$split-gt/;
 if [ $corpusname == "cwar" ]; then
     sercorpusprefix=cwar
 else
@@ -111,6 +113,26 @@ r3=""
 r4=""
 for i in 1 2 3
 do
+  echo "bmd"$i >> temp-results.txt
+  fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 1 >> temp-results.txt
+  r1+=`getr1 "bmd$i"`" "
+  r2+=`getr2 "bmd$i"`" "
+  r3+=`getr3 "bmd$i"`" "
+  r4+=`getr4 "bmd$i"`" "
+done
+r1=`fieldspring run opennlp.fieldspring.tr.util.Average $r1`
+r2=`fieldspring run opennlp.fieldspring.tr.util.Average $r2`
+r3=`fieldspring run opennlp.fieldspring.tr.util.Average $r3`
+r4=`fieldspring run opennlp.fieldspring.tr.util.Average $r4`
+echo -n "\\"
+prettyprint "bmd" $r1 $r2 $r3 $r4
+
+r1=""
+r2=""
+r3=""
+r4=""
+for i in 1 2 3
+do
   echo "\spider"$i >> temp-results.txt
   fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -r wmd -it 10 >> temp-results.txt
   r1+=`getr1 "\spider$i"`" "
@@ -155,18 +177,39 @@ r3=`getr3 "\trawl+"`
 r4=`getr4 "\trawl+"`
 prettyprint "\trawl+\spider" $r1 $r2 $r3 $r4
 
-echo "TextConstructTPPGrid" >> temp-results.txt
-fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -dpc 10 >> temp-results.txt
-printres "TextConstructTPPGrid"
+#echo "TextConstructTPPGrid" >> temp-results.txt
+#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -dpc 10 >> temp-results.txt
+#printres "TextConstructTPPGrid"
 
-echo "TextConstructTPPCluster" >> temp-results.txt
-fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -t 250 >> temp-results.txt
-printres "TextConstructTPPCluster"
+#echo "TextConstructTPPCluster" >> temp-results.txt
+#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r constructiontpp -t 250 >> temp-results.txt
+#printres "TextConstructTPPCluster"
 
-echo "TextACOTPPGrid" >> temp-results.txt
-fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -dpc 10 >> temp-results.txt
-printres "TextACOTPPGrid"
+#echo "TextACOTPPGrid" >> temp-results.txt
+#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -dpc 10 >> temp-results.txt
+#printres "TextACOTPPGrid"
 
-echo "TextACOTPPCluster" >> temp-results.txt
-fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -t 250 >> temp-results.txt
-printres "TextACOTPPCluster"
+#echo "TextACOTPPCluster" >> temp-results.txt
+#fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $modelsdir -r acotpp -t 250 >> temp-results.txt
+#printres "TextACOTPPCluster"
+
+echo "\listr" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $listrmodelsdir -l $logfile -r maxent >> temp-results.txt
+printres "\listr"
+
+echo "\wistr+\listr$_{Mix}$" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $wistrlistrmodelsdir -l $logfile -r maxent >> temp-results.txt
+r1=`getr1 "Mix"`
+r2=`getr2 "Mix"`
+r3=`getr3 "Mix"`
+r4=`getr4 "Mix"`
+prettyprint "\wistr+\listr{Mix}" $r1 $r2 $r3 $r4
+
+
+echo "\wistr+\listr$_{Boff}$" >> temp-results.txt
+fieldspring --memory $mem resolve -i $corpusdir -sci $sercorpusfile -cf tr -im $listrmodelsdir:$modelsdir -l $logfile -r maxent >> temp-results.txt
+r1=`getr1 "Boff"`
+r2=`getr2 "Boff"`
+r3=`getr3 "Boff"`
+r4=`getr4 "Boff"`
+prettyprint "\wistr+\listr{Backoff}" $r1 $r2 $r3 $r4
