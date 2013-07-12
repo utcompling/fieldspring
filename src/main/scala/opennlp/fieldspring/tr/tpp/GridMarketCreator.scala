@@ -5,7 +5,7 @@ import opennlp.fieldspring.tr.util._
 
 import scala.collection.JavaConversions._
 
-class GridMarketCreator(doc:Document[StoredToken], val dpc:Double, val purchaseCoster:MaxentPurchaseCoster = null) extends MarketCreator(doc) {
+class GridMarketCreator(doc:Document[StoredToken], val dpc:Double, val purchaseCoster:PurchaseCoster = null) extends MarketCreator(doc) {
   override def apply:List[Market] = {
     val cellNumsToPotLocs = new scala.collection.mutable.HashMap[Int, scala.collection.mutable.HashMap[ToponymMention, PotentialLocation]]
 

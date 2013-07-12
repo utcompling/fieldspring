@@ -25,8 +25,8 @@ class GaussianTPPResolver(val dpc:Double,
                           val acoIterations:Int)
   extends TPPResolver(new TPPInstance(
     //new MaxentPurchaseCoster(corpus, modelDirPath),
-    new MultiPurchaseCoster(List(new GaussianPurchaseCoster,//new SimpleContainmentPurchaseCoster,
-                                 new MaxentPurchaseCoster(corpus, modelDirPath))),
+    if(modelDirPath != null) new MultiPurchaseCoster(List(new GaussianPurchaseCoster, //new SimpleContainmentPurchaseCoster,
+                                 new MaxentPurchaseCoster(corpus, modelDirPath))) else new MultiPurchaseCoster(List(new GaussianPurchaseCoster)),
     if(articleInfoPath != null && linkPath != null) new LinkTravelCoster(articleInfoPath, linkPath, GaussianTPPResolver.loadGaz(gazPath))
     else if(marketProbPath != null) new FileTravelCoster(marketProbPath, corpus, dpc)
     else new GaussianTravelCoster)) {
@@ -63,14 +63,29 @@ class GaussianTPPResolver(val dpc:Double,
           if(tppInstance.markets == null) {
             //println(tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])
             tppInstance.markets =
-              if(threshold < 0) (new GridMarketCreator(doc, dpc, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
-              else (new ClusterMarketCreator(doc, threshold, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters(1).asInstanceOf[MaxentPurchaseCoster])).apply
+              if(threshold < 0) (new GridMarketCreator(doc, dpc, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters.last/*.asInstanceOf[MaxentPurchaseCoster]*/)).apply
+              else (new ClusterMarketCreator(doc, threshold, tppInstance.purchaseCoster.asInstanceOf[MultiPurchaseCoster].purchaseCosters.last/*.asInstanceOf[MaxentPurchaseCoster]*/)).apply
             docsToMarkets.put(doc.getId, tppInstance.markets)
           }
 
           val solver = new ACOTPPSolver(factory, population)
           
           var tour = solver(tppInstance)
+
+          if(doc.getId.equals("d94")) {
+            var prev:MarketVisit = null
+            for(mv <- tour) {
+              if(prev != null)
+                println("  Travel cost: "+tppInstance.travelCoster(prev.market, mv.market))
+              
+              val totalPurchaseCost = mv.purchasedLocations.map(_._2).map(purLoc => tppInstance.purchaseCoster(mv.market, purLoc)).sum
+              println("Total purchase cost of "+mv.purchasedLocations.size+" locations at market with centroid at ("+mv.market.centroid+"): "+totalPurchaseCost)
+              
+              prev = mv
+            }
+
+            solver.writeKML(tour, "d94-tour.kml")
+          }
 
           // Maintain a best tour and minimum cost for this document across all iterations:
           val cost = tppInstance.computeTourCost(tour)

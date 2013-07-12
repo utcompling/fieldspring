@@ -105,50 +105,103 @@ object ConstructionTPPSolver {
 
     val pc = tppInstance.purchaseCoster
 
+    //var boughtSomething = false
+
     // Buy goods that haven't been bought before or that are cheaper than when previously bought
     for((topMen, potLoc) <- market.locations) {
       if(resolvedToponymMentions.contains(topMen)) {
         if(pc(resolvedToponymMentions(topMen), potLoc) > pc(market, potLoc)) {
           marketVisit.purchasedLocations.put(topMen, potLoc)
           resolvedToponymMentions.put(topMen, market)
-          
+          //boughtSomething = true
         }
       }
       else {
         marketVisit.purchasedLocations.put(topMen, potLoc)
         resolvedToponymMentions.put(topMen, market)
+        //boughtSomething = true
       }
     }
 
-    // Unbuy goods that have already been purchased elsewhere for the same or cheaper
-    // prices. There should be a more efficient way to do this where we keep track of
-    // where purchased goods were purchased before, thereby not needing to iterate through
-    // all the markets already in the tour
-    for(existingMarketVisit <- tour) {
-      var index = 0
-      val purLocs = marketVisit.purchasedLocations.toList
-      while(index < purLocs.size) {
-      //for((topMen, newPotLoc) <- marketVisit.purchasedLocations) {
-        val topMen = purLocs(index)._1
-        val newPotLoc = purLocs(index)._2
-        val prevPotLoc = existingMarketVisit.purchasedLocations.getOrElse(topMen, null)
-        if(prevPotLoc != null) {
-          if(pc(existingMarketVisit.market, prevPotLoc) <= pc(marketVisit.market, newPotLoc)) {
-            //print(purLocs.size+" => ")
-            marketVisit.purchasedLocations.remove(topMen)
-            //println(purLocs.size)
+    // Only unbuy goods and insert this market into the tour if we actually bought anything here
+    if(marketVisit.purchasedLocations.size > 0) {
+
+      // Unbuy goods that have already been purchased elsewhere for the same or cheaper
+      // prices. There should be a more efficient way to do this where we keep track of
+      // where purchased goods were purchased before, thereby not needing to iterate through
+      // all the markets already in the tour
+      var mvIndex = 0
+      val mvIndecesToRemove = new ArrayList[Int]
+      for(existingMarketVisit <- tour) {
+        var purLocIndex = 0
+        val purLocs = marketVisit.purchasedLocations.toList
+        while(purLocIndex < purLocs.size) {
+          //for((topMen, newPotLoc) <- marketVisit.purchasedLocations) {
+          val topMen = purLocs(purLocIndex)._1
+          val newPotLoc = purLocs(purLocIndex)._2
+          val prevPotLoc = existingMarketVisit.purchasedLocations.getOrElse(topMen, null)
+          if(prevPotLoc != null) {
+            if(pc(existingMarketVisit.market, prevPotLoc) <= pc(marketVisit.market, newPotLoc)) {
+              //print(purLocs.size+" => ")
+              marketVisit.purchasedLocations.remove(topMen)
+              //println(purLocs.size)
+            }
+            else {
+              existingMarketVisit.purchasedLocations.remove(topMen)
+            }
           }
-          else {
-            existingMarketVisit.purchasedLocations.remove(topMen)
-          }
+          purLocIndex += 1
         }
+
+        if(existingMarketVisit.purchasedLocations.size == 0)
+          mvIndecesToRemove.add(mvIndex)
+
+        mvIndex += 1
+      }
+
+      // Remove market visits from the tour where we no longer buy anything
+      for(i <- mvIndecesToRemove) {
+        tour.remove(i)
+        var innerIndex = 0
+        for(j <- mvIndecesToRemove) {
+          if(j > i) 
+            mvIndecesToRemove.set(innerIndex, j-1)
+          innerIndex += 1
+        }
+      }
+      
+      // Check to make sure we're still buying something at this market after unbuying
+      if(marketVisit.purchasedLocations.size > 0) {
+        //println(index)
+        optimalInsert(tour, marketVisit, tppInstance.travelCoster) // This puts the market in the place that minimizes the added travel cost
+      }
+      
+    }
+  }
+
+  def optimalInsert(tour:ArrayList[MarketVisit], marketVisit:MarketVisit, tc:TravelCoster) {
+    if(tour.size == 0)
+      tour.insert(0, marketVisit)
+      
+    else {
+      var leastTC = Double.PositiveInfinity
+      var optIndex = -1
+      var index = 0
+      for(existingMV <- tour) {
+        val thisTC = tc(marketVisit.market, existingMV.market)
+        if(thisTC < leastTC) {
+          optIndex = index
+          leastTC = thisTC
+        }
+        
         index += 1
       }
-    }
-
-    if(marketVisit.purchasedLocations.size > 0) {
-      //println(index)
-      tour.insert(index, marketVisit) // This puts the market in the place that minimizes the added travel cost
+      val thisTC = tc(tour.last.market, marketVisit.market)
+      if(thisTC < leastTC) {
+        optIndex = tour.size
+      }
+      
+      tour.insert(optIndex, marketVisit)
     }
   }
 }

@@ -8,7 +8,7 @@ import java.util.ArrayList
 
 import scala.collection.JavaConversions._
 
-class ClusterMarketCreator(doc:Document[StoredToken], val thresholdInKm:Double, val purchaseCoster:MaxentPurchaseCoster = null) extends MarketCreator(doc) {
+class ClusterMarketCreator(doc:Document[StoredToken], val thresholdInKm:Double, val purchaseCoster:PurchaseCoster = null) extends MarketCreator(doc) {
 
   val threshold = thresholdInKm / 6372.8
 
