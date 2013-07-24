@@ -200,6 +200,8 @@ object ConstructionTPPSolver {
       if(thisTC < leastTC) {
         optIndex = tour.size
       }
+
+      if(optIndex < 0) optIndex = 0
       
       tour.insert(optIndex, marketVisit)
     }

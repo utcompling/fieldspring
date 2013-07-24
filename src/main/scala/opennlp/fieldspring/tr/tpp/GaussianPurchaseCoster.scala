@@ -9,6 +9,8 @@ class GaussianPurchaseCoster extends PurchaseCoster {
 
   def g(x:Double, y:Double) = GaussianUtil.g(x,y)
 
+  //val maxHeight = g(0.0,0.0)
+
   val storedCosts = new scala.collection.mutable.HashMap[(Int, Int), Double] // (location.id, market.id) => distance
   def cost(l:Location, m:Market): Double = {
       val key = (l.getId, m.id)
@@ -16,6 +18,7 @@ class GaussianPurchaseCoster extends PurchaseCoster {
         storedCosts(key)
       else {
         val cost = 1.0-g(l.getRegion.distance(m.centroid)/variance, 0)///max
+        //val cost = (maxHeight-g(l.getRegion.distance(m.centroid)/variance, 0))/maxHeight///max
         storedCosts.put(key, cost)
         cost
       }

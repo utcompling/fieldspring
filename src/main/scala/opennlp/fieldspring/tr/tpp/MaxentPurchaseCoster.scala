@@ -53,7 +53,7 @@ class MaxentPurchaseCoster(corpus:StoredCorpus, modelDirPath:String) extends Pur
   
   def apply(m:Market, potLoc:PotentialLocation): Double = {
     //if(m.locations.map(_._2).toSet.contains(potLoc)) {
-      potLocsToCosts.getOrElse(potLoc, 1.0) // Not sure what the default cost should be
+      1.0//potLocsToCosts.getOrElse(potLoc, 1.0) // Not sure what the default cost should be
     //}
     //else
     //  Double.PositiveInfinity

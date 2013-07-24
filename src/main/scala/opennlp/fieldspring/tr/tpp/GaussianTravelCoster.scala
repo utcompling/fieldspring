@@ -4,7 +4,7 @@ import opennlp.fieldspring.tr.topo._
 
 class GaussianTravelCoster extends TravelCoster {
 
-  val VARIANCE_KM = 1610
+  val VARIANCE_KM = 1610.0
   val variance = VARIANCE_KM / 6372.8
 
   def g(x:Double, y:Double) = GaussianUtil.g(x,y)
@@ -23,10 +23,10 @@ class GaussianTravelCoster extends TravelCoster {
 
 object GaussianTravelCoster extends App {
   val gtc = new GaussianTravelCoster
-  println((gtc.maxHeight-gtc.g(0,0))/gtc.maxHeight)
-  println((gtc.maxHeight-gtc.g(0.25,0))/gtc.maxHeight)
+  //println((gtc.maxHeight-gtc.g(0,0))/gtc.maxHeight)
+  //println((gtc.maxHeight-gtc.g(0.25,0))/gtc.maxHeight)
   println((gtc.maxHeight-gtc.g(0.5,0))/gtc.maxHeight)
   println((gtc.maxHeight-gtc.g(1.0,0))/gtc.maxHeight)
   println((gtc.maxHeight-gtc.g(2.0,0))/gtc.maxHeight)
-  println((gtc.maxHeight-gtc.g(3.0,0))/gtc.maxHeight)
+  //println((gtc.maxHeight-gtc.g(3.0,0))/gtc.maxHeight)
 }
